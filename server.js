@@ -22,7 +22,7 @@ const corsAllowlist = String(process.env.CORS_ALLOWED_ORIGINS || '')
 
 const isOriginAllowed = (origin = '') => {
   if (!origin) {
-    return !isProduction;
+    return true;
   }
   if (!corsAllowlist.length) {
     return !isProduction;
