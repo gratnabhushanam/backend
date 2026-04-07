@@ -24,6 +24,9 @@ const isOriginAllowed = (origin = '') => {
   if (!origin) {
     return true;
   }
+  if (origin.includes('vercel.app') || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    return true;
+  }
   if (!corsAllowlist.length) {
     return !isProduction;
   }
