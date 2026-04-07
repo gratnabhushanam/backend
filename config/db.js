@@ -8,6 +8,8 @@ const dialect = process.env.DB_DIALECT || 'sqlite';
 const isSqlite = dialect === 'sqlite';
 const sqliteStorage = process.env.SQLITE_STORAGE || path.join(__dirname, '..', 'data', 'gita_wisdom.sqlite');
 const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+const isVercelRuntime = String(process.env.VERCEL || '').toLowerCase() === '1';
+const allowProductionMock = String(process.env.ALLOW_PROD_MOCK || '').toLowerCase() === 'true' || isVercelRuntime;
 const shouldAlterSchema = String(process.env.DB_SYNC_ALTER || (!isProduction).toString()).toLowerCase() === 'true';
 
 const sequelize = isSqlite
@@ -40,10 +42,10 @@ const connectDB = async () => {
     console.log('Database synced');
   } catch (error) {
     console.error('Unable to connect to the MySQL database:', error.message);
-    if (isProduction) {
+    if (isProduction && !allowProductionMock) {
       throw new Error('Database connection failed in production. Mock mode is disabled for security.');
     }
-    console.warn('Running backend without database in development mode. Using mock authentication.');
+    console.warn('Running backend without a database. Using mock authentication/content fallback.');
     require('../controllers/authController').setMockMode(true);
   }
 };
