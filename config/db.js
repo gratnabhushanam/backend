@@ -12,24 +12,70 @@ const isVercelRuntime = String(process.env.VERCEL || '').toLowerCase() === '1';
 const allowProductionMock = String(process.env.ALLOW_PROD_MOCK || '').toLowerCase() === 'true' || isVercelRuntime;
 const shouldAlterSchema = String(process.env.DB_SYNC_ALTER || (!isProduction).toString()).toLowerCase() === 'true';
 
-const sequelize = isSqlite
-  ? new Sequelize({
-      dialect: 'sqlite',
-      storage: sqliteStorage,
-      logging: false,
-    })
-  : new Sequelize(
-      process.env.DB_NAME || 'gita_wisdom',
-      process.env.DB_USER || 'root',
-      process.env.DB_PASSWORD || '',
-      {
-        host: process.env.DB_HOST || 'localhost',
-        dialect,
-        logging: false,
+const createMockModel = (modelName) => {
+  const unavailable = async () => {
+    throw new Error(`${modelName} is unavailable in the Vercel mock runtime`);
+  };
+
+  return {
+    findAll: unavailable,
+    findOne: unavailable,
+    findByPk: unavailable,
+    create: unavailable,
+    update: unavailable,
+    destroy: unavailable,
+    count: unavailable,
+    belongsToMany: () => {},
+    belongsTo: () => {},
+    hasMany: () => {},
+    hasOne: () => {},
+    sync: async () => {},
+  };
+};
+
+const createMockSequelize = () => {
+  const models = new Map();
+
+  return {
+    define: (modelName) => {
+      if (!models.has(modelName)) {
+        models.set(modelName, createMockModel(modelName));
       }
-    );
+
+      return models.get(modelName);
+    },
+    authenticate: async () => {},
+    sync: async () => {},
+    close: async () => {},
+  };
+};
+
+const sequelize = isVercelRuntime
+  ? createMockSequelize()
+  : isSqlite
+    ? new Sequelize({
+        dialect: 'sqlite',
+        storage: sqliteStorage,
+        logging: false,
+      })
+    : new Sequelize(
+        process.env.DB_NAME || 'gita_wisdom',
+        process.env.DB_USER || 'root',
+        process.env.DB_PASSWORD || '',
+        {
+          host: process.env.DB_HOST || 'localhost',
+          dialect,
+          logging: false,
+        }
+      );
 
 const connectDB = async () => {
+  if (isVercelRuntime) {
+    console.log('Vercel runtime detected. Using mock database mode.');
+    require('../controllers/authController').setMockMode(true);
+    return;
+  }
+
   try {
     await sequelize.authenticate();
     if (isSqlite) {
